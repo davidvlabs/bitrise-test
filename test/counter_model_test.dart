@@ -7,6 +7,7 @@ void main() {
       final counter = Counter();
 
       counter.increment();
+      print("My print in counter model test");
 
       expect(counter.value, 1);
     });
