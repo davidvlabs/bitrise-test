@@ -18,6 +18,7 @@ void main() {
 
     test("Counter value should be decrementes", () {
       final counter = Counter();
+      print("My second print in counter model test");
       counter.decrement();
       expect(counter.value, -1);
     });
