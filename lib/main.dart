@@ -1,66 +1,87 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_facebook_login/flutter_facebook_login.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert' as JSON;
 
-Future<void> main() async {
-  await DotEnv().load('dotenv.env');
-  runApp(MyApp());
-}
+void main() => runApp(MyApp());
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+  State<StatefulWidget> createState() {
+    // TODO: implement createState
+    return _MyAppState();
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+class _MyAppState extends State<MyApp> {
+  bool _isLoggedIn = false;
+  Map userProfile;
+  final facebookLogin = FacebookLogin();
 
-  final String title;
+  _loginWithFB() async {
+    final result = await facebookLogin.logIn(['email']);
 
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
+    switch (result.status) {
+      case FacebookLoginStatus.loggedIn:
+        final token = result.accessToken.token;
+        final graphResponse = await http.get(
+            'https://graph.facebook.com/v2.12/me?fields=name,picture,email&access_token=${token}');
+        final profile = JSON.jsonDecode(graphResponse.body);
+        print(profile);
+        setState(() {
+          userProfile = profile;
+          _isLoggedIn = true;
+        });
+        break;
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+      case FacebookLoginStatus.cancelledByUser:
+        setState(() => _isLoggedIn = false);
+        break;
+      case FacebookLoginStatus.error:
+        setState(() => _isLoggedIn = false);
+        break;
+    }
+  }
 
-  void _incrementCounter() {
+  _logout() {
+    facebookLogin.logOut();
     setState(() {
-      _counter++;
+      _isLoggedIn = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(DotEnv().env["VAR_NAME"]),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
+    // TODO: implement build
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+            child: _isLoggedIn
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Image.network(
+                        userProfile["picture"]["data"]["url"],
+                        height: 50.0,
+                        width: 50.0,
+                      ),
+                      Text(userProfile["name"]),
+                      OutlineButton(
+                        child: Text("Logout"),
+                        onPressed: () {
+                          _logout();
+                        },
+                      )
+                    ],
+                  )
+                : Center(
+                    child: OutlineButton(
+                      child: Text("Login with Facebook"),
+                      onPressed: () {
+                        _loginWithFB();
+                      },
+                    ),
+                  )),
       ),
     );
   }
